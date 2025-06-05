@@ -1,7 +1,11 @@
 flask
 flask-sqlalchemy
+flask-mail
 python-dotenv
 requests
 pandas
 scikit-learn
 numpy
+matplotlib
+hdbscan
+imbalanced-learn
