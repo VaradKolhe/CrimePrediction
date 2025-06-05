@@ -5,9 +5,3 @@ requests
 pandas
 scikit-learn
 numpy
-opencv-python
-mediapipe
-pyautogui
-pygetwindow
-SpeechRecognition
-pyaudio
