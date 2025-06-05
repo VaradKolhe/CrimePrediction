@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crime Prediction System - {% block title %}{% endblock %}</title>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <style>
+        :root[data-theme="light"] {
+            --primary-color: #1E88E5; /* Royal Blue */
+            --danger-color: #D32F2F;  /* Crimson Red */
+            --warning-color: #FBC02D; /* Amber Yellow */
+            --success-color: #388E3C; /* Emerald Green */
+            --info-color: #5C6BC0;    /* Slate Blue */
+            --bg-dark: #2E2E2E;      /* Charcoal Gray */
+            --bg-light: #F5F5F5;     /* Ghost White */
+            --bg-color: #F5F5F5;     /* Main background */
+            --card-bg: #FFFFFF;      /* Card/panel background */
+            --text-color: #212121;   /* Onyx Black */
+            --text-secondary: #757575; /* Cool Gray */
+            --white: #FFFFFF;
+            --border-color: #E0E0E0;
+            --gradient-primary: linear-gradient(135deg, #1E88E5, #5C6BC0);
+            --gradient-secondary: linear-gradient(135deg, #D32F2F, #FBC02D);
+        }
+
+        :root[data-theme="dark"] {
+            --primary-color: #1E88E5; /* Royal Blue */
+            --danger-color: #D32F2F;  /* Crimson Red */
+            --warning-color: #FBC02D; /* Amber Yellow */
+            --success-color: #388E3C; /* Emerald Green */
+            --info-color: #5C6BC0;    /* Slate Blue */
+            --bg-dark: #2E2E2E;      /* Charcoal Gray */
+            --bg-light: #212121;     /* Onyx Black for cards */
+            --bg-color: #2E2E2E;     /* Main background */
+            --card-bg: #212121;      /* Card/panel background */
+            --text-color: #FFFFFF;   /* Pure White */
+            --text-secondary: #B0B0B0; /* Lighter Cool Gray for dark bg */
+            --white: #FFFFFF;
+            --border-color: #444444;
+            --gradient-primary: linear-gradient(135deg, #1E88E5, #5C6BC0);
+            --gradient-secondary: linear-gradient(135deg, #D32F2F, #FBC02D);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .theme-switch-wrapper {
+            display: flex;
+            align-items: center;
+            margin-left: 1rem;
+        }
+
+        .theme-switch {
+            display: inline-block;
+            height: 34px;
+            position: relative;
+            width: 60px;
+        }
+
+        .theme-switch input {
+            display: none;
+        }
+
+        .slider {
+            background-color: #ccc;
+            bottom: 0;
+            cursor: pointer;
+            left: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            background-color: #fff;
+            bottom: 4px;
+            content: "";
+            height: 26px;
+            left: 4px;
+            position: absolute;
+            transition: .4s;
+            width: 26px;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .slider .fas {
+            color: #f1c40f;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: .4s;
+        }
+
+        .slider .fa-sun {
+            left: 8px;
+            opacity: 0;
+        }
+
+        .slider .fa-moon {
+            right: 8px;
+            opacity: 1;
+        }
+
+        input:checked + .slider .fa-sun {
+            opacity: 1;
+        }
+
+        input:checked + .slider .fa-moon {
+            opacity: 0;
+        }
+
+        .navbar {
+            background-color: var(--bg-color);
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.3s ease, border-color 0.3s ease, padding 0.3s cubic-bezier(.4,0,.2,1);
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+            padding-top: 1.25rem;
+            padding-bottom: 1.25rem;
+        }
+        .navbar-scrolled {
+            padding-top: 0.3rem !important;
+            padding-bottom: 0.3rem !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            background-color: var(--bg-color);
+        }
+        .navbar-brand, .nav-link {
+            color: var(--text-color) !important;
+            transition: color 0.3s ease;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .text-light {
+            color: var(--text-color) !important;
+        }
+
+        .text-secondary {
+            color: var(--text-secondary) !important;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('home') }}">
+                <i class="fas fa-shield-alt me-2"></i>
+                ZoneAlert
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('home') }}">
+                            <i class="fas fa-home me-1"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('prediction') }}">
+                            <i class="fas fa-brain me-1"></i> Predictions
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('map') }}">
+                            <i class="fas fa-map-marked-alt me-1"></i> Map
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('contact') }}">
+                            <i class="fas fa-envelope me-1"></i> Contact
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <div class="theme-switch-wrapper">
+                            <label class="theme-switch" for="checkbox">
+                                <input type="checkbox" id="checkbox" />
+                                <div class="slider">
+                                    <i class="fas fa-sun"></i>
+                                    <i class="fas fa-moon"></i>
+                                </div>
+                            </label>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="py-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-4 mt-5" style="background-color: var(--card-bg); border-top: 1px solid var(--border-color);">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary">ZoneAlert</h5>
+                    <p class="text-secondary">Using AI to predict and prevent crime.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-secondary">&copy; 2024 ZoneAlert. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="position-fixed top-50 start-50 translate-middle d-none">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+    <!-- Leaflet.heat JS -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script>
+        // Theme switcher functionality
+        const toggleSwitch = document.querySelector('.theme-switch input[type="checkbox"]');
+        const currentTheme = localStorage.getItem('theme');
+
+        if (currentTheme) {
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            if (currentTheme === 'dark') {
+                toggleSwitch.checked = true;
+            }
+        }
+
+        function switchTheme(e) {
+            if (e.target.checked) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        toggleSwitch.addEventListener('change', switchTheme, false);
+
+        // Sticky navbar shrink on scroll
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 10) {
+                navbar.classList.add('navbar-scrolled');
+            } else {
+                navbar.classList.remove('navbar-scrolled');
+            }
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

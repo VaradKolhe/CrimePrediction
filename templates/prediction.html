@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Crime Prediction{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center mb-4">ZoneAlert</h1>
+    <div class="card custom-card p-4">
+        <h2 class="mb-4" style="color: var(--success-color);">Enter Location Details</h2>
+        <form id="predictionForm" onsubmit="getPrediction(event)">
+            <div class="mb-4">
+                <label for="city" class="form-label">City</label>
+                <select class="form-select custom-input" id="city" name="city" required onchange="updateAreas()">
+                    <option value="">Select City</option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="area" class="form-label">Area</label>
+                <select class="form-select custom-input" id="area" name="area" required>
+                    <option value="">Select Area</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn custom-btn w-100">Get Prediction</button>
+        </form>
+
+        <div id="loadingSpinner" class="text-center mt-4 d-none">
+            <div class="spinner-border" style="color: var(--success-color);" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+
+        <div id="predictionResult" class="mt-4 d-none">
+            <h3 class="text-center mb-3">Prediction Results</h3>
+            <div class="card custom-card p-3">
+                <div class="row" style="align-content: center; justify-content: space-evenly; align-items: center;">
+                    <div class="col-md-3">
+                        <h4 class="result-label">Risk Level</h4>
+                        <p id="riskLevel" class="h5"></p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="result-label">Probability</h4>
+                        <p id="probability" class="h5"></p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="result-label">Likely Crime</h4>
+                        <p id="likelyCrime" class="h5"></p>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h4 class="result-label">Safety Recommendations</h4>
+                    <ul id="recommendations" class="list-group list-group-flush bg-transparent"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+:root[data-theme="light"] {
+    --input-bg: #fff;
+    --input-color: #212121;
+    --input-border: #E0E0E0;
+}
+:root[data-theme="dark"] {
+    --input-bg: #23272b;
+    --input-color: #E2E8F0;
+    --input-border: #444;
+}
+.custom-card {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.custom-input {
+    background: var(--input-bg);
+    color: var(--input-color);
+    border: 1px solid var(--input-border);
+    transition: background 0.2s, color 0.2s, border 0.2s;
+}
+.custom-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(30,136,229,0.15);
+}
+.custom-btn {
+    background: var(--success-color);
+    color: var(--white);
+    border: none;
+    transition: background 0.2s;
+}
+.custom-btn:hover, .custom-btn:focus {
+    background: var(--primary-color);
+    color: var(--white);
+}
+.result-label {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+.list-group-item {
+    background: var(--bg-light) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--border-color) !important;
+}
+</style>
+{% endblock %}
+
+<script>
+let citiesAndAreas = {};
+
+// Function to load cities and areas from clustered data
+function loadCitiesAndAreas() {
+    fetch('/get_clustered_data')
+        .then(response => response.json())
+        .then(data => {
+            // Group areas by city
+            const groupedData = data.reduce((acc, item) => {
+                if (!acc[item.city]) {
+                    acc[item.city] = new Set();
+                }
+                acc[item.city].add(item.area);
+                return acc;
+            }, {});
+
+            // Convert Sets to Arrays
+            citiesAndAreas = Object.fromEntries(
+                Object.entries(groupedData).map(([city, areas]) => [city, Array.from(areas)])
+            );
+
+            // Populate city dropdown
+            const citySelect = document.getElementById('city');
+            Object.keys(citiesAndAreas).sort().forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                option.textContent = city;
+                citySelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading cities and areas:', error);
+            alert('Failed to load cities and areas. Please try again.');
+        });
+}
+
+function updateAreas() {
+    const citySelect = document.getElementById('city');
+    const areaSelect = document.getElementById('area');
+    const selectedCity = citySelect.value;
+    
+    // Clear existing options
+    areaSelect.innerHTML = '<option value="">Select Area</option>';
+    
+    if (selectedCity && citiesAndAreas[selectedCity]) {
+        citiesAndAreas[selectedCity].sort().forEach(area => {
+            const option = document.createElement('option');
+            option.value = area;
+            option.textContent = area;
+            areaSelect.appendChild(option);
+        });
+    }
+}
+
+function getPrediction(event) {
+    event.preventDefault();
+    
+    const city = document.getElementById('city').value;
+    const area = document.getElementById('area').value;
+    
+    if (!city || !area) {
+        alert('Please select both city and area');
+        return;
+    }
+    
+    // Show loading spinner
+    document.getElementById('loadingSpinner').classList.remove('d-none');
+    document.getElementById('predictionResult').classList.add('d-none');
+    
+    // Make API call to get prediction
+    fetch('/api/predict', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            city: city,
+            area: area
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Update prediction results
+        document.getElementById('riskLevel').textContent = data.risk_level;
+        let riskColor = data.risk_level === 'Low' ? 'var(--success-color)' : data.risk_level === 'Medium' ? 'var(--warning-color)' : 'var(--danger-color)';
+        document.getElementById('riskLevel').style.color = riskColor;
+        
+        document.getElementById('probability').textContent = (data.probability * 100).toFixed(0) + '%';
+        document.getElementById('likelyCrime').textContent = data.likely_crime;
+        
+        const recommendationsList = document.getElementById('recommendations');
+        recommendationsList.innerHTML = '';
+        data.recommendations.forEach(rec => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.textContent = rec;
+            recommendationsList.appendChild(li);
+        });
+        
+        // Hide spinner and show results
+        document.getElementById('loadingSpinner').classList.add('d-none');
+        document.getElementById('predictionResult').classList.remove('d-none');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to get prediction. Please try again.');
+        document.getElementById('loadingSpinner').classList.add('d-none');
+    });
+}
+
+// Load cities and areas when the page loads
+document.addEventListener('DOMContentLoaded', loadCitiesAndAreas);
+</script>
+{% endblock %} 

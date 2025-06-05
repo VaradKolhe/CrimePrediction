@@ -1,0 +1,406 @@
+{% extends "base.html" %}
+
+{% block title %}Crime Map{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+<style>
+    #map {
+        height: 600px;
+        width: 100%;
+    }
+    
+    /* Custom search control styling */
+    .custom-search-control {
+        background: var(--card-bg);
+        padding: 5px;
+        border-radius: 4px;
+        box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        width: 300px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .custom-search-control .search-container {
+        display: flex;
+        width: 100%;
+    }
+    
+    .custom-search-control input {
+        border: 1px solid var(--border-color);
+        border-radius: 4px 0 0 4px;
+        padding: 5px 10px;
+        flex: 1;
+        background: var(--bg-light);
+        color: var(--text-color);
+    }
+    
+    .custom-search-control .search-button {
+        background: var(--success-color);
+        color: var(--white);
+        border: none;
+        border-radius: 0 4px 4px 0;
+        padding: 5px 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    }
+    
+    .custom-search-control .search-button:hover {
+        background: var(--primary-color);
+    }
+    
+    .custom-search-control .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        margin-top: 5px;
+        max-height: 200px;
+        overflow-y: auto;
+        display: none;
+        z-index: 1000;
+    }
+    
+    .custom-search-control .search-results a {
+        display: block;
+        padding: 8px 10px;
+        text-decoration: none;
+        color: var(--text-color);
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .custom-search-control .search-results a:hover {
+        background-color: var(--bg-light);
+    }
+    
+    .custom-search-control .search-results a:last-child {
+        border-bottom: none;
+    }
+    
+    .card-body .text-success, .legend-success {
+        color: var(--success-color) !important;
+        font-weight: 600;
+    }
+    
+    .bg-darker {
+        background-color: var(--legend-bg) !important;
+    }
+    
+    .custom-card {
+        background: var(--card-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        border-radius: 1rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    }
+    
+    .d-flex span {
+        color: var(--text-color);
+        font-weight: 500;
+        margin-left: 10px !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+    }
+    
+    .rounded-circle {
+        width: 20px !important;
+        height: 20px !important;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+    
+    :root[data-theme="light"] {
+        --legend-bg: var(--card-bg);
+        --legend-danger-bg: #D32F2F;
+        --legend-warning-bg: #FBC02D;
+        --legend-primary-bg: #1E88E5;
+    }
+    :root[data-theme="dark"] {
+        --legend-bg: var(--bg-dark);
+        --legend-danger-bg: #D32F2F;
+        --legend-warning-bg: #FBC02D;
+        --legend-primary-bg: #1E88E5;
+    }
+    .legend-danger {
+        background: var(--legend-danger-bg) !important;
+        border: 2px solid var(--legend-danger-bg) !important;
+    }
+    .legend-warning {
+        background: var(--legend-warning-bg) !important;
+        border: 2px solid var(--legend-warning-bg) !important;
+    }
+    .legend-primary {
+        background: var(--legend-primary-bg) !important;
+        border: 2px solid var(--legend-primary-bg) !important;
+    }
+    .legend-label {
+        color: var(--text-color) !important;
+        font-weight: 500;
+        margin-bottom: 0;
+        display: inline-block;
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid pt-3">
+    <div class="row">
+        <!-- Controls Panel -->
+        <div class="col-md-3 p-4">
+            <div class="card custom-card">
+                <div class="card-body">
+                    <h3 class="card-title legend-success mb-4">Map Legend</h3>
+                    <div class="card bg-darker">
+                        <div class="card-body">
+                            <h5 class="card-title legend-success">Legend</h5>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="legend-danger rounded-circle"></div>
+                                <span class="legend-label">High Risk</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="legend-warning rounded-circle"></div>
+                                <span class="legend-label">Medium Risk</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="legend-primary rounded-circle"></div>
+                                <span class="legend-label">Low Risk</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map Container -->
+        <div class="col-md-9 p-0">
+            <div id="map"></div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const map = L.map('map', {
+            zoomControl: false
+        }).setView([18.5204, 73.8567], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Layer group for clustered crime data
+        let clusteredDataLayer = L.layerGroup().addTo(map);
+        let currentZoomLevel = map.getZoom();
+
+        // Function to update layer visibility based on zoom level
+        function updateLayerVisibility() {
+            currentZoomLevel = map.getZoom();
+            if (currentZoomLevel >= 9 && currentZoomLevel <= 17) {
+                if (!map.hasLayer(clusteredDataLayer)) {
+                    clusteredDataLayer.addTo(map);
+                }
+            } else {
+                if (map.hasLayer(clusteredDataLayer)) {
+                    map.removeLayer(clusteredDataLayer);
+                }
+            }
+        }
+
+        // Listen for zoom events
+        map.on('zoomend', updateLayerVisibility);
+
+        // Create custom search control
+        const CustomSearchControl = L.Control.extend({
+            options: {
+                position: 'topleft'
+            },
+
+            onAdd: function(map) {
+                const container = L.DomUtil.create('div', 'custom-search-control');
+                
+                // Create search container
+                const searchContainer = L.DomUtil.create('div', 'search-container', container);
+                
+                // Create search input
+                const searchInput = L.DomUtil.create('input', '', searchContainer);
+                searchInput.type = 'text';
+                searchInput.placeholder = 'Search location...';
+                
+                // Create search button
+                const searchButton = L.DomUtil.create('button', 'search-button', searchContainer);
+                searchButton.innerHTML = '<i class="fas fa-search"></i>';
+                
+                // Create results container
+                const resultsContainer = L.DomUtil.create('div', 'search-results', container);
+                
+                // Prevent map click events when clicking on the control
+                L.DomEvent.disableClickPropagation(container);
+                L.DomEvent.disableScrollPropagation(container);
+                
+                let searchMarker = null;
+
+                async function performSearch(query) {
+                    if (!query) return;
+
+                    // Show loading state
+                    searchButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    resultsContainer.style.display = 'none';
+
+                    try {
+                        // Use Nominatim API directly
+                        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+                        const results = await response.json();
+
+                        // Reset input and button
+                        searchInput.value = query;
+                        searchButton.innerHTML = '<i class="fas fa-search"></i>';
+
+                        if (results && results.length > 0) {
+                            // Clear previous results
+                            resultsContainer.innerHTML = '';
+                            
+                            // Add results to the list
+                            results.forEach((result) => {
+                                const item = document.createElement('a');
+                                item.href = '#';
+                                item.innerHTML = result.display_name;
+                                
+                                item.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    handleSearchResult(result);
+                                });
+                                
+                                resultsContainer.appendChild(item);
+                            });
+                            
+                            resultsContainer.style.display = 'block';
+                        } else {
+                            resultsContainer.innerHTML = '<a href="#">No results found</a>';
+                            resultsContainer.style.display = 'block';
+                        }
+                    } catch (error) {
+                        console.error('Error during search:', error);
+                        resultsContainer.innerHTML = '<a href="#">Error during search</a>';
+                        resultsContainer.style.display = 'block';
+                        searchInput.value = query;
+                        searchButton.innerHTML = '<i class="fas fa-search"></i>';
+                    }
+                }
+
+                function handleSearchResult(result) {
+                    // Remove previous marker if exists
+                    if (searchMarker) {
+                        map.removeLayer(searchMarker);
+                    }
+
+                    // Create coordinates from result
+                    const latlng = L.latLng(result.lat, result.lon);
+
+                    // Add new marker
+                    searchMarker = L.marker(latlng)
+                        .addTo(map)
+                        .bindPopup(result.display_name)
+                        .openPopup();
+
+                    // Zoom to the location
+                    map.setView(latlng, 12);
+
+                    // Hide results
+                    resultsContainer.style.display = 'none';
+                }
+
+                // Event listeners for search
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        performSearch(searchInput.value);
+                    }
+                });
+
+                searchButton.addEventListener('click', function() {
+                    performSearch(searchInput.value);
+                });
+
+                // Close results when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!container.contains(e.target)) {
+                        resultsContainer.style.display = 'none';
+                    }
+                });
+
+                return container;
+            }
+        });
+
+        // Add custom search control to map
+        new CustomSearchControl().addTo(map);
+
+        // Function to load and display clustered crime data
+        function loadClusteredData() {
+            fetch('/get_clustered_data')
+                .then(response => response.json())
+                .then(data => {
+                    // Clear existing clustered data markers
+                    clusteredDataLayer.clearLayers();
+
+                    // Add circles for each cluster
+                    data.forEach(cluster => {
+                        let color;
+                        let radius;
+                        let fillOpacity = 0.3;
+
+                        // Set color based on risk level
+                        switch (cluster.risk_level) {
+                            case 'High':
+                                color = getComputedStyle(document.documentElement).getPropertyValue('--danger-color').trim();
+                                radius = Math.min(1000, Math.max(700, cluster.total_points * 4.5));
+                                break;
+                            case 'Medium':
+                                color = getComputedStyle(document.documentElement).getPropertyValue('--warning-color').trim();
+                                radius = Math.min(800, Math.max(500, cluster.total_points * 3.5));
+                                fillOpacity = 0.5;
+                                break;
+                            case 'Low':
+                                color = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
+                                radius = Math.min(600, Math.max(300, cluster.total_points * 3.5));
+                                break;
+                        }
+
+                        // Create circle for the cluster
+                        L.circle([cluster.latitude, cluster.longitude], {
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: fillOpacity,
+                            radius: radius
+                        }).addTo(clusteredDataLayer)
+                        .bindPopup(`
+                            <b>Cluster ${cluster.cluster}</b><br>
+                            City: ${cluster.city}<br>
+                            Area: ${cluster.area}<br>
+                            Risk Level: ${cluster.risk_level}<br>
+                            Total Points: ${cluster.total_points}
+                        `);
+                    });
+
+                    // Update layer visibility after loading data
+                    updateLayerVisibility();
+                })
+                .catch(error => console.error('Error loading clustered data:', error));
+        }
+
+        // Load clustered data initially
+        loadClusteredData();
+    });
+</script>
+{% endblock %}
+{% endblock %}
